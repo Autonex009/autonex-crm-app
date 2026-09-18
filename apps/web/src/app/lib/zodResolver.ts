@@ -3,7 +3,7 @@ import type { ZodTypeAny } from "zod";
 
 /**
  * Minimal react-hook-form resolver for a zod schema. Lets us reuse the shared
- * @go-crm/schemas contracts for form validation without pulling in the full
+ * @go-crm/types contracts for form validation without pulling in the full
  * @hookform/resolvers package.
  */
 export function zodResolver<T extends FieldValues>(schema: ZodTypeAny): Resolver<T> {

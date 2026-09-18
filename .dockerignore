@@ -17,13 +17,11 @@ build
 **/.expo
 apps/mobile/*
 !apps/mobile/package.json
-services/bin
 **/*.log
 .env
 .env.*
 !.env.example
 .vscode
 .idea
-EXPLAINER.md
+docs
 README.md
-DEPLOY.md

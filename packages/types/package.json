@@ -1,5 +1,5 @@
 {
-  "name": "@go-crm/schemas",
+  "name": "@go-crm/types",
   "version": "0.0.0",
   "private": true,
   "type": "module",

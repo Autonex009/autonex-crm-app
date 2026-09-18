@@ -1,4 +1,4 @@
-import { DEAL_STAGES, type DealStage } from "@go-crm/schemas";
+import { DEAL_STAGES, type DealStage } from "@go-crm/types";
 
 import { STAGE_META, normalizeDealStage } from "../../deals/stages";
 import type { LinkedDeal, LinkedInvoice, LinkedLead, LinkedQuote } from "../api";

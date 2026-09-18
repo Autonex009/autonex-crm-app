@@ -1,4 +1,4 @@
-import { contactSchema } from "@go-crm/schemas";
+import { contactSchema } from "@go-crm/types";
 import type { z } from "zod";
 
 /**

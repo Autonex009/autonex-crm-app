@@ -1,4 +1,4 @@
-import { loginSchema } from "@go-crm/schemas";
+import { loginSchema } from "@go-crm/types";
 import { z } from "zod";
 
 /**

@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.7
 #
 # Astro web app (apps/web) for Railway — hybrid output, @astrojs/node standalone.
-# Build context is the repo root because the app depends on the pnpm workspace
-# packages in shared/.
+# The build context is the repo root because the app depends on the pnpm
+# workspace packages in packages/.
 
 FROM node:20-alpine AS base
 ENV PNPM_HOME=/pnpm \
@@ -17,10 +17,11 @@ WORKDIR /app
 # apps/mobile is here purely so --frozen-lockfile can verify the whole lockfile.
 FROM base AS manifests
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/web/package.json            apps/web/
-COPY apps/mobile/package.json         apps/mobile/
-COPY shared/design-tokens/package.json shared/design-tokens/
-COPY shared/schemas/package.json       shared/schemas/
+COPY apps/web/package.json             apps/web/
+COPY apps/mobile/package.json          apps/mobile/
+COPY packages/api-client/package.json  packages/api-client/
+COPY packages/design-tokens/package.json packages/design-tokens/
+COPY packages/types/package.json       packages/types/
 
 # ---------- build deps ----------
 FROM manifests AS deps
@@ -37,7 +38,7 @@ ENV PUBLIC_API_URL=$PUBLIC_API_URL
 # Fail loudly. Unset, the SPA silently falls back to http://localhost:8080 and
 # ships a bundle that cannot reach the API from anywhere but your laptop.
 RUN test -n "$PUBLIC_API_URL" || { echo "ERROR: PUBLIC_API_URL must be set as a service variable"; exit 1; }
-COPY shared/   shared/
+COPY packages/ packages/
 COPY apps/web/ apps/web/
 RUN pnpm --filter @go-crm/web build
 
@@ -55,11 +56,11 @@ ENV HOST=0.0.0.0 \
 
 COPY --from=prod-deps /app/node_modules          ./node_modules
 COPY --from=prod-deps /app/apps/web/node_modules ./apps/web/node_modules
-# The @go-crm/* symlinks in node_modules point into shared/, so those directories
-# have to exist: the first copy brings their own installed deps, the second their
-# TypeScript sources.
-COPY --from=prod-deps /app/shared                ./shared
-COPY shared/                                     ./shared/
+# The @go-crm/* symlinks in node_modules point into packages/, so those
+# directories have to exist: the first copy brings their own installed deps, the
+# second their TypeScript sources.
+COPY --from=prod-deps /app/packages              ./packages
+COPY packages/                                   ./packages/
 COPY --from=build     /app/apps/web/dist         ./apps/web/dist
 
 USER node

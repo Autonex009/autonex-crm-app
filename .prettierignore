@@ -1,0 +1,12 @@
+pnpm-lock.yaml
+dist
+.astro
+.turbo
+.expo
+node_modules
+coverage
+
+# A verbatim copy of the backend's docs/API.md. CI diffs it byte-for-byte against
+# the live file, so reformatting it here would make the contract check fail
+# forever.
+docs/api-contract/

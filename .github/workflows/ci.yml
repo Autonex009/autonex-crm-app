@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  frontend:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,29 +16,41 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm lint
-      - run: pnpm typecheck
 
-  backend:
+      # The Astro build type-checks the whole app, so it is the real gate here.
+      # PUBLIC_API_URL only has to be a well-formed URL for the build to succeed;
+      # the deployed value comes from the service variable.
+      - run: pnpm build
+        env:
+          PUBLIC_API_URL: http://localhost:8080
+
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+
+  # The API is the contract of record, and it lives in another repository with no
+  # compiler between us and it. This fails the build when its endpoint reference
+  # changes, so a breaking change is noticed here rather than at runtime.
+  api-contract:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.25"
-      # gofmt exits 0 whatever it finds, so the listing itself is the assertion.
-      - name: gofmt
+      - name: Compare against autonex-crm-api docs/API.md
+        env:
+          GH_TOKEN: ${{ secrets.API_REPO_READ_TOKEN }}
         run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "These files need gofmt -w:"
-            echo "$unformatted"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "API_REPO_READ_TOKEN not set — skipping contract check."
+            echo "Add a read-only token for Autonex009/autonex-crm-api to enable it."
+            exit 0
+          fi
+          gh api -H 'Accept: application/vnd.github.raw' \
+            repos/Autonex009/autonex-crm-api/contents/docs/API.md > /tmp/API.md
+          if ! diff -q /tmp/API.md docs/api-contract/API.md >/dev/null 2>&1; then
+            echo "::error::The API reference changed in autonex-crm-api."
+            diff -u docs/api-contract/API.md /tmp/API.md || true
+            echo "Review the diff, update packages/types if needed, then copy the"
+            echo "new file to docs/api-contract/API.md to acknowledge it."
             exit 1
           fi
-      - run: go vet ./...
-      - run: go build ./...
-      - run: go test ./...
+          echo "API contract unchanged."

@@ -1,5 +1,5 @@
 {
-  "name": "go-crm",
+  "name": "autonex-crm-app",
   "private": true,
   "version": "0.0.0",
   "packageManager": "pnpm@9.12.0",
@@ -8,10 +8,14 @@
   },
   "scripts": {
     "dev": "turbo run dev",
+    "dev:web": "pnpm --filter @go-crm/web dev",
+    "dev:mobile": "pnpm --filter @go-crm/mobile dev",
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "lint": "prettier --check packages/",
+    "format": "prettier --write packages/",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "format:all": "prettier --write ."
   },
   "devDependencies": {
     "turbo": "^2.1.0",

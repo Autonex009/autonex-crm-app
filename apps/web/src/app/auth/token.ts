@@ -1,37 +1,9 @@
-/** Claims embedded in the access token (see services/internal/auth/jwt.go). */
-export interface JwtClaims {
-  sub: string;
-  email: string;
-  /** Organization id — the gateway scopes every query by it. */
-  org: string;
-  /** profiles.role — may be absent on a token minted before roles existed. */
-  role?: string;
-  iss: string;
-  iat: number;
-  exp: number;
-}
-
 /**
- * Decodes a JWT's payload without verifying its signature. The gateway is the
- * source of truth for validity; this only lets the SPA read `sub`/`email`/`exp`
- * for display and expiry checks.
+ * Token helpers. Decoding lives in @go-crm/api-client (the native app needs it
+ * too); the SSO fragment capture below is browser-only and stays here.
  */
-export function decodeJwt(token: string): JwtClaims | null {
-  const payload = token.split(".")[1];
-  if (!payload) return null;
-  try {
-    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.parse(json) as JwtClaims;
-  } catch {
-    return null;
-  }
-}
-
-/** True when the token is missing/malformed or its `exp` is in the past. */
-export function isExpired(claims: JwtClaims | null): boolean {
-  if (!claims?.exp) return true;
-  return claims.exp * 1000 <= Date.now();
-}
+export { decodeJwt, isExpired } from "@go-crm/api-client";
+export type { JwtClaims } from "@go-crm/api-client";
 
 /**
  * SSO delivers the access token in the URL fragment (`/app#token=<jwt>`), which

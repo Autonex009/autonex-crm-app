@@ -1,18 +1,5 @@
-/** Mirrors the auth module's User view (services/internal/auth/store.go). */
-export interface User {
-  id: string;
-  email: string;
-  /** Display name. Set when joining via an invitation; null for plain signups. */
-  name?: string | null;
-  /** The tenant this user belongs to (see EXPLAINER §13). */
-  orgId?: string;
-  authProvider: string;
-  /** profiles.role — "owner" | "admin" | "sales" | "account_manager" | "client". */
-  role?: string;
-}
-
-/** Response body of a successful /login, /register or invitation accept. */
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
+/**
+ * Auth types shared with the native app. Re-exported from here so existing
+ * imports (`../auth/types`) keep working.
+ */
+export type { AuthResponse, User } from "@go-crm/api-client";

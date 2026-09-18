@@ -1,4 +1,4 @@
-import { DEAL_STAGES } from "@go-crm/schemas";
+import { DEAL_STAGES } from "@go-crm/types";
 import { z } from "zod";
 
 import type { DealInput } from "./api";

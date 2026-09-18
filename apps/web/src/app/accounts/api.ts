@@ -1,4 +1,4 @@
-import { accountSchema } from "@go-crm/schemas";
+import { accountSchema } from "@go-crm/types";
 import { z } from "zod";
 
 import { apiFetch } from "../lib/api";

@@ -1,68 +1,14 @@
-import { refreshSession } from "../auth/session";
-import { useAuthStore } from "../auth/store";
-import type { AuthResponse } from "../auth/types";
-import { API_URL, AUTH_BASE } from "./config";
-
-/** Error carrying the HTTP status and the gateway's `{ "error": ... }` message. */
-export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-/** Performs the call and normalizes both transport and API-level failures. */
-async function request<T>(url: string, init: RequestInit): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(url, init);
-  } catch {
-    // Network-level failure (server down, CORS, offline).
-    throw new ApiError(0, "Could not reach the server. Is the gateway running?");
-  }
-
-  // 204 No Content (e.g. DELETE) has no body to parse.
-  if (res.status === 204) {
-    return undefined as T;
-  }
-
-  const data = (await res.json().catch(() => ({}))) as { error?: string } & Partial<T>;
-  if (!res.ok) {
-    throw new ApiError(res.status, data.error ?? "Request failed");
-  }
-  return data as T;
-}
-
 /**
- * Public auth calls. `credentials: "include"` so the refresh cookie the server
- * sets on login/register is actually stored by the browser.
+ * The web app's API surface.
+ *
+ * Everything real lives in @go-crm/api-client, shared with the native app; this
+ * module binds it to this app's configuration (see ./client) and re-exports it
+ * under the names the rest of the codebase already imports. Feature modules
+ * import `apiFetch` from here and do not need to know about the client object.
  */
-async function postJSON<T>(path: string, body: unknown): Promise<T> {
-  return request<T>(`${AUTH_BASE}${path}`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
+import { api } from "./client";
 
-function buildInit(init: RequestInit, token: string | null): RequestInit {
-  const headers = new Headers(init.headers);
-  headers.set("Accept", "application/json");
-  // FormData sets its own Content-Type, including the multipart boundary the
-  // server needs to split the parts. Setting it here would send a boundary-less
-  // header and every upload would fail to parse.
-  if (init.body !== undefined && !(init.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-  return { ...init, credentials: "include", headers };
-}
+export { ApiError } from "@go-crm/api-client";
 
 /**
  * Authenticated call to the gateway: attaches the bearer token from the session
@@ -74,27 +20,12 @@ function buildInit(init: RequestInit, token: string | null): RequestInit {
  * session is cleared, and ProtectedRoute — subscribed to the store — redirects on
  * the next render.
  */
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const url = `${API_URL}${path}`;
+export const apiFetch = api.apiFetch;
 
-  try {
-    return await request<T>(url, buildInit(init, useAuthStore.getState().token));
-  } catch (err) {
-    if (!(err instanceof ApiError) || err.status !== 401) throw err;
-
-    // Single-flight inside refreshSession, so parallel 401s rotate once.
-    const recovered = await refreshSession();
-    if (!recovered) throw err;
-
-    return request<T>(url, buildInit(init, useAuthStore.getState().token));
-  }
-}
-
+/** Public auth calls. The caller decides when the user is signed in. */
 export const authApi = {
-  login: (email: string, password: string) =>
-    postJSON<AuthResponse>("/login", { email, password }),
-  register: (email: string, password: string, name?: string) =>
-    postJSON<AuthResponse>("/register", { email, password, name }),
+  login: api.login,
+  register: api.register,
 };
 
 /**
@@ -103,6 +34,4 @@ export const authApi = {
  * `/app#token=<jwt>` (captured by captureTokenFromHash) with the refresh cookie
  * already set.
  */
-export function ssoUrl(provider: "google" | "github"): string {
-  return `${AUTH_BASE}/sso/${provider}`;
-}
+export const ssoUrl = api.ssoUrl;

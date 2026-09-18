@@ -8,12 +8,7 @@ build/
 .astro/
 .expo/
 .turbo/
-
-# Go
-services/bin/
-*.exe
-*.test
-vendor/
+coverage/
 
 # Env & secrets
 .env
@@ -28,14 +23,3 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
-
-# Dummy & Seed Data
-*dummy*
-*seed*.sql
-EXPLAINER.md
-CRM_DATABASE_TYPES_AND_MIGRATION_GUIDE.md
-crm_main_db.sql
-Autonex_VIGIL_Technocommercial.pdf
-Copy of Autonex Client Tracker .xlsx
-backups/
-

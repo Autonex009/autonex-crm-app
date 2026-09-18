@@ -1,4 +1,4 @@
-import { DEAL_STAGES, type DealStage } from "@go-crm/schemas";
+import { DEAL_STAGES, type DealStage } from "@go-crm/types";
 
 import type { KanbanColumnDef, Tone } from "../ui";
 

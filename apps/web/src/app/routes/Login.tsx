@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { loginSchema, type LoginInput } from "@go-crm/schemas";
+import { loginSchema, type LoginInput } from "@go-crm/types";
 import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 
 import { AuthLayout } from "../auth/AuthLayout";
