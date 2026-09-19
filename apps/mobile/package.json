@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -25,6 +25,7 @@
     "expo-notifications": "~0.28.19",
     "expo-secure-store": "~13.0.2",
     "expo-status-bar": "~1.12.0",
+    "expo-system-ui": "~3.0.7",
     "react": "18.2.0",
     "react-hook-form": "^7.52.0",
     "react-native": "0.74.0",
@@ -33,6 +34,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@react-native/gradle-plugin": "0.74.81",
     "@types/react": "~18.2.0",
     "typescript": "^5.5.0"
   }
