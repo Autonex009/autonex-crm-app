@@ -35,13 +35,7 @@ interface DealDialogProps {
 }
 
 /** Create/edit form. One dialog for both, since the field set is identical. */
-export function DealDialog({
-  deal,
-  defaultStage,
-  onClose,
-  onSubmit,
-  onDelete,
-}: DealDialogProps) {
+export function DealDialog({ deal, defaultStage, onClose, onSubmit, onDelete }: DealDialogProps) {
   const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -88,6 +82,24 @@ export function DealDialog({
     name: "locationIds",
   });
 
+  // Sites belong to one company, so changing the company invalidates whatever
+  // was selected. The server now rejects a deal that names another company's
+  // site with a 400, so leaving them would turn a company change into an error
+  // the user has no obvious way to clear.
+  //
+  // Guarded by a ref rather than a plain dependency on accountId: that fires on
+  // mount too, which would wipe the sites of every deal the moment it was
+  // opened for editing. Only a change away from a previously-set company counts.
+  const previousAccountId = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = previousAccountId.current;
+    previousAccountId.current = accountId ?? "";
+    if (previous === null || previous === (accountId ?? "")) return;
+    if ((getValues("locationIds") ?? []).length > 0) {
+      setValue("locationIds", []);
+    }
+  }, [accountId, getValues, setValue]);
+
   // The picker asks the server for the leads it needs rather than paging through
   // them here. Once a company is chosen it fetches that company's leads — all of
   // them, since the largest companies carry more than the old fixed first-100
@@ -106,12 +118,9 @@ export function DealDialog({
     if (leadId && allLeads.data) {
       const selectedLead = allLeads.data.items.find((l) => l.id === leadId);
       if (selectedLead) {
-        if (selectedLead.accountId)
-          setValue("accountId", selectedLead.accountId);
-        if (selectedLead.contactId)
-          setValue("contactId", selectedLead.contactId);
-        if (selectedLead.ownerUserId)
-          setValue("ownerUserId", selectedLead.ownerUserId);
+        if (selectedLead.accountId) setValue("accountId", selectedLead.accountId);
+        if (selectedLead.contactId) setValue("contactId", selectedLead.contactId);
+        if (selectedLead.ownerUserId) setValue("ownerUserId", selectedLead.ownerUserId);
         if (selectedLead.value) setValue("amount", selectedLead.value);
         // The deal title is the deal's own name, not the lead's. Pre-fill from the
         // lead's company (what the deal is actually about) and only when the
@@ -155,9 +164,7 @@ export function DealDialog({
       await onSubmit(toPayload(values));
       onClose();
     } catch (err) {
-      setFormError(
-        err instanceof ApiError ? err.message : "Could not save this deal",
-      );
+      setFormError(err instanceof ApiError ? err.message : "Could not save this deal");
     }
   });
 
@@ -187,11 +194,7 @@ export function DealDialog({
           </div>
         )}
 
-        <Field
-          label="Title"
-          error={errors.title?.message}
-          {...register("title")}
-        />
+        <Field label="Title" error={errors.title?.message} {...register("title")} />
 
         {/* Cameras and products are short values and pair on one line. The
             site picker gets a row of its own: it opens a panel, and a dropdown
@@ -205,9 +208,7 @@ export function DealDialog({
             error={errors.totalCameras?.message}
             {...register("totalCameras", {
               setValueAs: (v) =>
-                v === "" || v === null || Number.isNaN(Number(v))
-                  ? null
-                  : Number(v),
+                v === "" || v === null || Number.isNaN(Number(v)) ? null : Number(v),
             })}
           />
           <Field
@@ -263,11 +264,7 @@ export function DealDialog({
             {...register("expectedCloseDate")}
           />
 
-          <SelectField
-            label="Stage"
-            error={errors.stage?.message}
-            {...register("stage")}
-          >
+          <SelectField label="Stage" error={errors.stage?.message} {...register("stage")}>
             {DEAL_STAGES.map((stage) => (
               <option key={stage} value={stage}>
                 {stageLabel(stage)}
@@ -289,27 +286,17 @@ export function DealDialog({
           </SelectField>
         </div>
 
-        <AccountSelect
-          error={errors.accountId?.message}
-          {...register("accountId")}
-        />
+        <AccountSelect error={errors.accountId?.message} {...register("accountId")} />
 
         <div>
-          <SelectField
-            label="Lead"
-            error={errors.leadId?.message}
-            {...register("leadId")}
-          >
+          <SelectField label="Lead" error={errors.leadId?.message} {...register("leadId")}>
             {accountId ? (
               selectableLeads.length > 0 ? (
                 <>
-                  <option value="">
-                    — Select Lead ({selectableLeads.length} available) —
-                  </option>
+                  <option value="">— Select Lead ({selectableLeads.length} available) —</option>
                   {selectableLeads.map((l) => (
                     <option key={l.id} value={l.id}>
-                      {l.firstName} {l.lastName ?? ""}{" "}
-                      {l.title ? `(${l.title})` : ""}
+                      {l.firstName} {l.lastName ?? ""} {l.title ? `(${l.title})` : ""}
                     </option>
                   ))}
                 </>
@@ -318,13 +305,10 @@ export function DealDialog({
               )
             ) : (
               <>
-                <option value="">
-                  — Select Lead (or choose company above to filter) —
-                </option>
+                <option value="">— Select Lead (or choose company above to filter) —</option>
                 {selectableLeads.map((l) => (
                   <option key={l.id} value={l.id}>
-                    {l.firstName} {l.lastName ?? ""}{" "}
-                    {l.title ? `(${l.title})` : ""}{" "}
+                    {l.firstName} {l.lastName ?? ""} {l.title ? `(${l.title})` : ""}{" "}
                     {l.company ? `— ${l.company}` : ""}
                   </option>
                 ))}
