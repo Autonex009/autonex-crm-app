@@ -1,13 +1,40 @@
 {
   "expo": {
-    "name": "go-CRM",
+    "name": "Autonex CRM",
     "slug": "go-crm",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "autonexcrm",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F7F7F8",
     "assetBundlePatterns": ["**/*"],
-    "ios": { "supportsTablet": true },
-    "android": {},
-    "updates": { "fallbackToCacheTimeout": 0 }
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.autonexai360.crm",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "package": "com.autonexai360.crm",
+      "userInterfaceStyle": "automatic",
+      "adaptiveIcon": {
+        "backgroundColor": "#4F46E5"
+      },
+      "permissions": ["POST_NOTIFICATIONS"]
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#4F46E5"
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "updates": { "fallbackToCacheTimeout": 0 },
+    "extra": {
+      "eas": {}
+    }
   }
 }
