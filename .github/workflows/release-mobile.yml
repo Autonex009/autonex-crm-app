@@ -168,6 +168,8 @@ jobs:
           name: Dealbridge ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})
           files: apps/mobile/android/app/build/outputs/apk/release/dealbridge-${{ steps.version.outputs.name }}.apk
           generate_release_notes: true
+          make_latest: "true"
+          prerelease: false
           body: |
             **Android APK — install directly, no Play Store account needed.**
 
