@@ -23,7 +23,7 @@ pluginManagement {
 
   def gradlePluginDir = getPackageDir("@react-native/gradle-plugin")
   if (gradlePluginDir != null && gradlePluginDir.exists()) {
-    includeBuild(gradlePluginDir.canonicalFile.toString())
+    includeBuild(gradlePluginDir.canonicalPath)
   }
   if(reactNativeMinor == 74 && reactNativePatch <= 3){
     includeBuild("react-settings-plugin")
@@ -103,6 +103,6 @@ def getRootPackageDir = { String pkgName ->
 
 def rootGradlePluginDir = getRootPackageDir("@react-native/gradle-plugin")
 if (rootGradlePluginDir != null && rootGradlePluginDir.exists()) {
-  includeBuild(rootGradlePluginDir.canonicalFile)
+  includeBuild(rootGradlePluginDir.canonicalPath)
 }
 
