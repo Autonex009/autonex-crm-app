@@ -1,4 +1,4 @@
-package com.autonexai360.crm
+package com.autonex.gocrm
 
 import android.app.Application
 import android.content.res.Configuration

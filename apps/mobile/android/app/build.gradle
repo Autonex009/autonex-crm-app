@@ -103,19 +103,49 @@ def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInRelea
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
+/**
+ * Release signing material, from the environment first and gradle properties
+ * second.
+ *
+ * CI exports it as environment variables so nothing is written to a file that
+ * could be committed; a developer signing locally can instead put the same
+ * four keys in ~/.gradle/gradle.properties, which is outside the repository.
+ */
+def releaseSigning(String key) {
+    return System.getenv(key) ?: findProperty(key)
+}
+
+/** The keystore to sign with, or null when there is none. */
+def releaseKeystoreFile = {
+    def path = releaseSigning('DEALBRIDGE_KEYSTORE_FILE')
+    if (path == null || path.toString().trim().isEmpty()) return null
+    def f = new File(path.toString())
+    if (!f.isAbsolute()) f = file(path)
+    return f.exists() ? f : null
+}()
+
 android {
     ndkVersion rootProject.ext.ndkVersion
 
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.autonexai360.crm'
+    namespace 'com.autonex.gocrm'
     defaultConfig {
-        applicationId 'com.autonexai360.crm'
+        applicationId 'com.autonex.gocrm'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
+
+        // The release workflow passes the run number as the version code and the
+        // version from app.json as the name, so every published APK is an
+        // upgrade over the last one. A local build keeps the checked-in values.
+        //
+        // Assigned with `=` rather than the bare-setter style used elsewhere in
+        // this block: `versionCode (expr).toInteger()` parses as
+        // `versionCode(expr).toInteger()`, which calls the setter and then
+        // dereferences its null return.
+        versionCode = Integer.parseInt(System.getenv("DEALBRIDGE_VERSION_CODE") ?: "1")
+        versionName = System.getenv("DEALBRIDGE_VERSION_NAME") ?: "1.0.0"
     }
     signingConfigs {
         debug {
@@ -124,15 +154,28 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // Populated below only when real signing material is present; an
+            // empty signingConfig block is legal and simply goes unused.
+            if (releaseKeystoreFile != null) {
+                storeFile releaseKeystoreFile
+                storePassword releaseSigning('DEALBRIDGE_KEYSTORE_PASSWORD')
+                keyAlias releaseSigning('DEALBRIDGE_KEY_ALIAS')
+                keyPassword releaseSigning('DEALBRIDGE_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // A release APK signed with the debug key cannot be upgraded by a
+            // properly signed one later, so a published build MUST carry the
+            // real key. Falling back to debug keeps `assembleRelease` usable on
+            // a developer machine for smoke-testing a production bundle; the
+            // workflow fails the job instead of shipping such an APK.
+            signingConfig releaseKeystoreFile != null ? signingConfigs.release : signingConfigs.debug
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"

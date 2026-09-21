@@ -1,13 +1,39 @@
 {
   "expo": {
-    "name": "go-CRM",
-    "slug": "go-crm",
+    "name": "Dealbridge",
+    "slug": "dealbridge",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": ["**/*"],
-    "ios": { "supportsTablet": true },
-    "android": {},
-    "updates": { "fallbackToCacheTimeout": 0 }
+    "icon": "./assets/icon.png",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.autonex.gocrm",
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "UIViewControllerBasedStatusBarAppearance": true
+      }
+    },
+    "android": {
+      "package": "com.autonex.gocrm",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#05195e"
+      },
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "androidStatusBar": {
+      "translucent": true,
+      "backgroundColor": "#00000000"
+    }
   }
 }

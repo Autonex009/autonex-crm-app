@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, production]
   pull_request:
 
 jobs:
@@ -24,9 +24,20 @@ jobs:
         env:
           PUBLIC_API_URL: http://localhost:8080
 
+      # Covers both apps: the mobile package has no build step of its own, and
+      # its bundle is compiled ahead of time into the release APK, so a type
+      # error that slips through becomes a crash on a phone rather than a red
+      # box in a dev client.
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+
+      # The release workflow runs the same bundler. Doing it here means a
+      # broken import is caught on the PR rather than 12 minutes into a
+      # production build.
+      - name: Bundle the mobile app
+        working-directory: apps/mobile
+        run: npx expo export --platform android --output-dir "$RUNNER_TEMP/expo-export"
 
   # The API is the contract of record, and it lives in another repository with no
   # compiler between us and it. This fails the build when its endpoint reference

@@ -1,5 +1,7 @@
 # autonex-crm-app
 
+[![Download the Android app](https://img.shields.io/github/v/release/kedar49/autonex-crm-app?label=Download%20Android%20APK&color=4f46e5&style=for-the-badge&logo=android&logoColor=white)](https://github.com/kedar49/autonex-crm-app/releases/latest)
+
 The frontend for Autonex DealBridge CRM: an Astro + React web app and a React
 Native (Expo) mobile app, sharing one API client, one type layer and one set of
 design tokens.
@@ -18,7 +20,7 @@ apps/mobile ──┘                                (autonex-crm-api)
 ```
 apps/
   web/        Astro 4 (hybrid output) + React 18 island SPA mounted at /app
-  mobile/     Expo 51 / React Native 0.74 — scaffold, not yet built out
+  mobile/     Expo 51 / React Native 0.74 — read-only companion app
 packages/
   api-client/ The only way this codebase talks to the API: transport, error
               normalisation, single-flight token refresh, both auth modes
@@ -163,3 +165,37 @@ See `docs/api-contract/README.md`.
 
 Enable it by adding an `API_REPO_READ_TOKEN` secret with read access to the API
 repo; without it the job skips rather than failing.
+
+## Download the Android app
+
+**[⬇ Get the latest APK](https://github.com/kedar49/autonex-crm-app/releases/latest)**
+
+A production build: the JavaScript is compiled into the APK, so it runs with no
+development server, no Expo Go and no debug overlay. Android 7.0 and newer.
+
+1. Open the link above on your phone and download `dealbridge-<version>.apk`.
+2. Tap the downloaded file. Android will ask you to allow installs from your
+   browser or file manager the first time — allow it, then tap Install.
+3. Sign in with your Dealbridge account, Google or GitHub.
+
+The app is read-only by design: it shows the pipeline, it does not edit it.
+Leads, companies, deals with their tasks and actions, quotes, invoices and
+notifications, all matching what the web app shows.
+
+> If Android says **"App not installed"**, an older development build is already
+> on the device. Uninstall it first — debug and release builds are signed with
+> different keys and cannot replace each other.
+
+## Releasing
+
+Pushing to the `production` branch builds and publishes a signed APK; the
+download link above always points at the newest one.
+
+```bash
+git checkout production
+git merge --ff-only main
+git push
+```
+
+Full instructions, including the one-time signing-key setup, are in
+[docs/RELEASE.md](docs/RELEASE.md).

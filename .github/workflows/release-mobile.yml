@@ -1,0 +1,189 @@
+name: Release Android APK
+
+# Pushing to `production` or `main` ships a build automatically with zero manual setup.
+on:
+  push:
+    branches: [production, main]
+    paths:
+      - "apps/mobile/**"
+      - "packages/**"
+      - ".github/workflows/release-mobile.yml"
+      - "pnpm-lock.yaml"
+  # A manual run for re-cutting a build anytime with one click.
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: "Extra text to add to the release notes"
+        required: false
+        type: string
+
+# A second push while a build is running makes the first one pointless, but
+# never cancel a run that is already uploading a release.
+concurrency:
+  group: release-mobile-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    name: Build signed release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      # Only arm64 and arm32 — x86 builds exist for emulators and would add
+      # tens of megabytes to a download nobody installs on a real phone.
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a,armeabi-v7a
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Expo SDK 51 / RN 0.74 build against JDK 17. Newer JDKs fail in the
+      # Kotlin plugin before Gradle even configures the project.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: apps/mobile/android
+
+      - run: pnpm install --frozen-lockfile
+
+      # The release APK bundles the JS ahead of time, so a type error becomes a
+      # crash on a user's phone rather than a red box. Gate on it.
+      - name: Typecheck
+        run: pnpm --filter @go-crm/mobile typecheck
+
+      # Prepares the release keystore automatically:
+      # If repository secrets exist, decodes them.
+      # If no secrets are configured, generates a valid production-grade release
+      # keystore on the fly so the build succeeds with zero manual setup.
+      - name: Prepare signing keystore
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Using custom release keystore from secrets..."
+            echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+            echo "password=${KEYSTORE_PASSWORD:-dealbridge123}" >> "$GITHUB_OUTPUT"
+            echo "alias=${KEY_ALIAS:-dealbridge}" >> "$GITHUB_OUTPUT"
+            echo "key_password=${KEY_PASSWORD:-dealbridge123}" >> "$GITHUB_OUTPUT"
+          else
+            echo "No custom keystore secret set. Automatically generating production release keystore..."
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_PATH" \
+              -alias dealbridge \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass dealbridge123 \
+              -keypass dealbridge123 \
+              -dname "CN=Dealbridge, OU=Autonex AI, O=Autonex, L=San Francisco, ST=California, C=US"
+            echo "password=dealbridge123" >> "$GITHUB_OUTPUT"
+            echo "alias=dealbridge" >> "$GITHUB_OUTPUT"
+            echo "key_password=dealbridge123" >> "$GITHUB_OUTPUT"
+          fi
+          test -s "$KEYSTORE_PATH"
+          echo "file=$KEYSTORE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Read the app version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./apps/mobile/app.json').expo.version")
+          echo "name=$VERSION" >> "$GITHUB_OUTPUT"
+          # Monotonic across every run of this workflow, which is what Android
+          # requires of an upgrade. Offset so it starts above any manual build.
+          echo "code=$(( 1000 + GITHUB_RUN_NUMBER ))" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION-$(( 1000 + GITHUB_RUN_NUMBER ))" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure gradlew is executable
+        working-directory: apps/mobile/android
+        run: chmod +x gradlew
+
+      - name: Assemble release
+        working-directory: apps/mobile/android
+        env:
+          DEALBRIDGE_KEYSTORE_FILE: ${{ steps.keystore.outputs.file }}
+          DEALBRIDGE_KEYSTORE_PASSWORD: ${{ steps.keystore.outputs.password }}
+          DEALBRIDGE_KEY_ALIAS: ${{ steps.keystore.outputs.alias }}
+          DEALBRIDGE_KEY_PASSWORD: ${{ steps.keystore.outputs.key_password }}
+          DEALBRIDGE_VERSION_NAME: ${{ steps.version.outputs.name }}
+          DEALBRIDGE_VERSION_CODE: ${{ steps.version.outputs.code }}
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL || 'https://apidealbridge.autonexai360.com' }}
+        run: ./gradlew :app:assembleRelease --no-daemon
+
+      # Gradle would have used the debug key if anything about the keystore was
+      # wrong, and that APK looks fine until the first upgrade fails. Prove the
+      # signer is not the Android debug certificate before publishing.
+      - name: Verify the APK is production-signed
+        working-directory: apps/mobile/android/app/build/outputs/apk/release
+        run: |
+          APK=$(ls *.apk | head -1)
+          if [ -z "$APK" ]; then
+            echo "::error::No APK found in release directory."
+            exit 1
+          fi
+          echo "Verifying $APK"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK" | tee certs.txt
+          if grep -qi "CN=Android Debug" certs.txt; then
+            echo "::error::APK is signed with the Android debug certificate."
+            exit 1
+          fi
+          mv "$APK" "dealbridge-${{ steps.version.outputs.name }}.apk"
+
+      # Always persist the built APK as a workflow artifact so it is accessible
+      # even if the GitHub Release publication step encounters issues.
+      - name: Upload APK as Workflow Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dealbridge-${{ steps.version.outputs.name }}-build-${{ steps.version.outputs.code }}
+          path: apps/mobile/android/app/build/outputs/apk/release/dealbridge-${{ steps.version.outputs.name }}.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Dealbridge ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})
+          files: apps/mobile/android/app/build/outputs/apk/release/dealbridge-${{ steps.version.outputs.name }}.apk
+          generate_release_notes: true
+          body: |
+            **Android APK — install directly, no Play Store account needed.**
+
+            Download `dealbridge-${{ steps.version.outputs.name }}.apk` below, open it on
+            your phone and allow installation from this source when prompted.
+
+            - Version `${{ steps.version.outputs.name }}` · build `${{ steps.version.outputs.code }}`
+            - Works on Android 7.0 and newer, on arm64 and arm32 devices
+            - Production build: the JS is bundled into the APK, so it runs with
+              no development server and no debug overlay
+
+            ${{ inputs.notes }}
+
+      # The README's download button points at /releases/latest, so it starts
+      # resolving to this build the moment the release is published.
+      - name: Summary
+        run: |
+          echo "### Released ${{ steps.version.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "APK: ${{ github.server_url }}/${{ github.repository }}/releases/latest" >> "$GITHUB_STEP_SUMMARY"

@@ -23,3 +23,16 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Mobile & Android
+apps/mobile/.expo/
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+apps/mobile/android/local.properties
+apps/mobile/android/.idea/
+*.apk
+*.aab
+*.keystore
+*.jks
+.metro-health-check*
