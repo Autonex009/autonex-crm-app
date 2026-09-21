@@ -1,19 +1,19 @@
 pluginManagement {
   def getPackageDir = { String pkgName ->
     try {
-      def proc = ["node", "--print", "try { console.log(require('path').dirname(require.resolve('${pkgName}/package.json', { paths: ['${rootDir}', '${new File(rootDir, '..')}', '${new File(rootDir, '../../..')}'] }))) } catch(e) { process.exit(1) }"].execute(null, rootDir)
+      def proc = ["node", "--print", "try { require('path').dirname(require.resolve('${pkgName}/package.json', { paths: ['${rootDir}', '${new File(rootDir, '..')}', '${new File(rootDir, '../../..')}'] })) } catch(e) { process.exit(1) }"].execute(null, rootDir)
       proc.waitFor()
       if (proc.exitValue() == 0) {
         def out = proc.text.trim()
-        if (out && new File(out).exists()) return new File(out)
+        if (out && new File(out).exists()) return new File(out).canonicalFile
       }
     } catch (Exception ignored) {}
     def candidates = [
       new File(rootDir, "../node_modules/${pkgName}"),
-      new File(rootDir, "../../../node_modules/${pkgName}"),
-      new File(rootDir, "../../../node_modules/.pnpm/@react-native+gradle-plugin@0.74.81/node_modules/${pkgName}")
+      new File(rootDir, "../../../node_modules/${pkgName}")
     ]
-    return candidates.find { it.exists() }
+    def found = candidates.find { it.exists() }
+    return found != null ? found.canonicalFile : null
   }
 
   def version = providers.exec {
@@ -23,7 +23,7 @@ pluginManagement {
 
   def gradlePluginDir = getPackageDir("@react-native/gradle-plugin")
   if (gradlePluginDir != null && gradlePluginDir.exists()) {
-    includeBuild(gradlePluginDir.toString())
+    includeBuild(gradlePluginDir.canonicalFile.toString())
   }
   if(reactNativeMinor == 74 && reactNativePatch <= 3){
     includeBuild("react-settings-plugin")
@@ -83,4 +83,26 @@ if (getRNMinorVersion() < 75) {
 }
 
 include ':app'
-includeBuild(new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile())
+
+def getRootPackageDir = { String pkgName ->
+  try {
+    def proc = ["node", "--print", "try { require('path').dirname(require.resolve('${pkgName}/package.json', { paths: ['${rootDir}', '${new File(rootDir, '..')}', '${new File(rootDir, '../../..')}'] })) } catch(e) { process.exit(1) }"].execute(null, rootDir)
+    proc.waitFor()
+    if (proc.exitValue() == 0) {
+      def out = proc.text.trim()
+      if (out && new File(out).exists()) return new File(out).canonicalFile
+    }
+  } catch (Exception ignored) {}
+  def candidates = [
+    new File(rootDir, "../node_modules/${pkgName}"),
+    new File(rootDir, "../../../node_modules/${pkgName}")
+  ]
+  def found = candidates.find { it.exists() }
+  return found != null ? found.canonicalFile : null
+}
+
+def rootGradlePluginDir = getRootPackageDir("@react-native/gradle-plugin")
+if (rootGradlePluginDir != null && rootGradlePluginDir.exists()) {
+  includeBuild(rootGradlePluginDir.canonicalFile)
+}
+
